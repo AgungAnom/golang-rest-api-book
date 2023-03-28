@@ -2,6 +2,6 @@
 
 branch "main" : Simple API
 
-branch "sql" : API with PostgresSQL
+branch "sql" : API with PostgreSQL
 
-branch "gorm" : API with PostgresSQL and GORM
+branch "gorm" : API with PostgreSQL and GORM
