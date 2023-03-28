@@ -58,79 +58,82 @@ func (c *Controllers) GetBook(ctx *gin.Context){
 			})
 		return
 	}
-
-
 	ctx.JSON(http.StatusOK,book)
 	
 }
 
-// func UpdateBook(ctx *gin.Context){
-// 	bookId := ctx.Param("id")
-// 	idData,_ := strconv.Atoi(bookId)
-// 	state := false
-// 	var updatedBook Book
-
-// 		if err := ctx.ShouldBindJSON(&updatedBook); err != nil{
-// 				ctx.AbortWithError(http.StatusBadRequest, err)
-// 				return
-// 			}
-
-	
-// 	for i, book := range bookDatas{
-// 		if idData == book.BookID{
-// 			state = true
-// 			bookDatas[i] = updatedBook
-// 			bookDatas[i].BookID = idData
-// 			break
-// 		}
-// 	}
-
-// 	if !state{
-// 		ctx.AbortWithStatusJSON(http.StatusNotFound,gin.H{
-// 			"error_message": fmt.Sprintf("Book with id %v not found", idData),
-// 			})
-// 	} else {
-// 		show := []byte(`"Updated"`)
-// 		ctx.Data(http.StatusOK,"application/json", show)
-// 	}
-	
-// }
-
-
-// func DeleteBook(ctx *gin.Context){
-// 	bookId := ctx.Param("id")
-// 	idData,_ := strconv.Atoi(bookId)
-// 	state := false
-// 	var indexBook int
+func (c *Controllers) UpdateBook(ctx *gin.Context){
+	bookId := ctx.Param("id")
+	idData,_ := strconv.Atoi(bookId)
+	var newData models.Book
+	var book models.Book
+	var bookShow models.Book
 
 
 	
-// 	for i, book := range bookDatas{
-// 		if idData == book.BookID{
-// 			state = true
-// 			indexBook = i
-// 			break
-// 		}
-// 	}
+	err := c.projectDB.First(&book, idData).Error
+	if err != nil {
+		ctx.AbortWithError(http.StatusInternalServerError, err)
+		ctx.AbortWithStatusJSON(http.StatusNotFound,gin.H{
+			"error_message": fmt.Sprintf("Book with id %v not found", idData),
+			})
+		return
+	}
+	
+	
+	if err := ctx.ShouldBindJSON(&newData); err != nil{
+		ctx.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
 
-// 	if !state{
-// 		ctx.AbortWithStatusJSON(http.StatusNotFound,gin.H{
-// 			"error_message": fmt.Sprintf("Book with id %v not found", idData),
-// 			})
-// 		return
-// 	}
+	book = models.Book{
+		ID:uint(idData),
+		Title: newData.Title,
+		Author: newData.Author,
+		UpdatedAt: time.Now(),
+	}
+
+	if err := c.projectDB.Model(&book).Updates(book).Error; err != nil {
+		ctx.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	err2 := c.projectDB.First(&bookShow, idData).Error
+	if err2 != nil {
+		ctx.AbortWithError(http.StatusInternalServerError, err)
+		ctx.AbortWithStatusJSON(http.StatusNotFound,gin.H{
+			"error_message": fmt.Sprintf("Book with id %v not found", idData),
+			})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, bookShow)
+
+}
 
 
+func (c *Controllers)DeleteBook(ctx *gin.Context){
+	bookId := ctx.Param("id")
+	idData,_ := strconv.Atoi(bookId)
+	var book models.Book
 
-// 	if state {
-// 		copy(bookDatas[indexBook:], bookDatas[indexBook+1:])
-// 		bookDatas[len(bookDatas)-1] = Book{}
-// 		bookDatas = bookDatas[:len(bookDatas)-1]
+	err := c.projectDB.First(&book, idData).Error
+	if err != nil {
+		ctx.AbortWithError(http.StatusInternalServerError, err)
+		ctx.AbortWithStatusJSON(http.StatusNotFound,gin.H{
+			"error_message": fmt.Sprintf("Book with id %v not found", idData),
+			})
+		return
+	}
 
-// 		show := []byte(`"Deleted"`)
-// 		ctx.Data(http.StatusOK,"application/json", show)
-// 	}
+	if err := c.projectDB.Delete(&book).Error; err != nil {
+		ctx.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
 
-// 	}
+	ctx.JSON(http.StatusOK,gin.H{
+		"message":"Book deleted successfully",
+	})
+}
 
 
