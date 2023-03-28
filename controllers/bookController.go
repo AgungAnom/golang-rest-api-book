@@ -1,13 +1,17 @@
 package controllers
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/lib/pq"
 )
 
+var m sync.Mutex
 type Book	struct{
 	BookID int `json:"id"`
 	Title string `json:"title"`
@@ -15,7 +19,39 @@ type Book	struct{
 	Desc string `json:"desc"`
 
 }
+
+const (
+	host = "localhost"
+	port = 5432
+	user = "postgres1"
+	password = "postgres1"
+	dbname = "db_go_sql"
+)
+
+var (
+	db *sql.DB
+	err error
+)
+
+
 var bookDatas = []Book{}
+
+func RunDB(){
+	// m.Lock()
+	dbUrl := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host,port,user,password,dbname)
+	db, err = sql.Open("postgres", dbUrl)
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+	err = db.Ping()
+	if err != nil{
+		panic(err)
+	}
+	fmt.Println("Connected to Database")
+	// m.Unlock()
+}
+
 
 func CreateBook(ctx *gin.Context){
 	var newBook Book
