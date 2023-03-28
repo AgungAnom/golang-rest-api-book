@@ -8,7 +8,7 @@ import (
 
 
 func StartServer() *gin.Engine {
-	controllers.RunDB()
+
 	router := gin.Default()
 	router.GET("/books", controllers.GetAllBook)
 	router.POST("/books", controllers.CreateBook)
