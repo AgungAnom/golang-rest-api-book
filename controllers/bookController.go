@@ -42,7 +42,7 @@ func (c *Controllers) CreateBook(ctx *gin.Context){
 		return
 	}
 
-	ctx.JSON(http.StatusOK, book)
+	ctx.JSON(http.StatusCreated, book)
 }
 
 func (c *Controllers) GetBook(ctx *gin.Context){
