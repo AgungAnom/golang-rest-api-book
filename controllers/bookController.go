@@ -34,8 +34,6 @@ var (
 )
 
 
-var bookDatas = []Book{}
-
 func RunDB(){
 	// m.Lock()
 	dbUrl := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host,port,user,password,dbname)
@@ -43,7 +41,7 @@ func RunDB(){
 	if err != nil {
 		panic(err)
 	}
-	defer db.Close()
+	// defer db.Close()
 	err = db.Ping()
 	if err != nil{
 		panic(err)
@@ -55,108 +53,92 @@ func RunDB(){
 
 func CreateBook(ctx *gin.Context){
 	var newBook Book
+	var book = Book{}
 	if err := ctx.ShouldBindJSON(&newBook); err != nil{
 		ctx.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
-	newBook.BookID = len(bookDatas)+1
-	bookDatas = append(bookDatas,newBook)
-
+	sqlStatement := `INSERT INTO books ("title", "author", "desc") VALUES ($1, $2, $3) Returning *`
+	err = db.QueryRow(sqlStatement, &newBook.Title, &newBook.Author, &newBook.Desc).Scan(&book.BookID,&book.Title,&book.Author,&book.Desc)
+	if err != nil{
+		panic(err)
+	}
 
 	show := []byte(`"Created"`)
-	ctx.Data(http.StatusOK,"application/json", show)
+	ctx.Data(http.StatusCreated,"application/json", show)
 }
 
 func GetBook(ctx *gin.Context){
 	bookId := ctx.Param("id")
 	idData,_ := strconv.Atoi(bookId)
-	state := false
 	var bookData Book
 
+	sqlStatement := `SELECT * FROM books WHERE id = $1`
+	err := db.QueryRow(sqlStatement, idData).Scan(&bookData.BookID,&bookData.Title,&bookData.Author,&bookData.Desc)
 
-	for _, book := range bookDatas{
-		if idData == book.BookID{
-			state = true
-			bookData = book
-			break
-		}
-	}
-
-	if !state{
+	if err != nil{
 		ctx.AbortWithStatusJSON(http.StatusNotFound,gin.H{
 			"error_message": fmt.Sprintf("Book with id %v not found", idData),
 			})
 	} else {
-		ctx.JSON(http.StatusOK,bookData)
+			ctx.JSON(http.StatusOK,bookData)
 	}
-
-	
 }
 
 func UpdateBook(ctx *gin.Context){
 	bookId := ctx.Param("id")
 	idData,_ := strconv.Atoi(bookId)
-	state := false
 	var updatedBook Book
-
 		if err := ctx.ShouldBindJSON(&updatedBook); err != nil{
 				ctx.AbortWithError(http.StatusBadRequest, err)
 				return
 			}
 
-	
-	for i, book := range bookDatas{
-		if idData == book.BookID{
-			state = true
-			bookDatas[i] = updatedBook
-			bookDatas[i].BookID = idData
-			break
-		}
-	}
-
-	if !state{
+	sqlStatement := `UPDATE books 
+	SET "title" = $2, "author" = $3, "desc" = $4
+	WHERE id = $1
+	`
+	res, err := db.Exec(sqlStatement, idData,&updatedBook.Title, &updatedBook.Author, &updatedBook.Desc)
+	count, err2 := res.RowsAffected()
+	if err != nil{
 		ctx.AbortWithStatusJSON(http.StatusNotFound,gin.H{
 			"error_message": fmt.Sprintf("Book with id %v not found", idData),
-			})
+		})
+	} else if (count == 0) {
+		ctx.AbortWithStatusJSON(http.StatusNotFound,gin.H{
+			"error_message": fmt.Sprintf("Book with id %v not found", idData),
+		})
+	
+	} else if err2 != nil{
+		panic(err)
 	} else {
 		show := []byte(`"Updated"`)
 		ctx.Data(http.StatusOK,"application/json", show)
 	}
-	
 }
 
 
 func DeleteBook(ctx *gin.Context){
 	bookId := ctx.Param("id")
 	idData,_ := strconv.Atoi(bookId)
-	state := false
-	var indexBook int
 
-
-	
-	for i, book := range bookDatas{
-		if idData == book.BookID{
-			state = true
-			indexBook = i
-			break
-		}
-	}
-
-	if !state{
+	sqlStatement := `DELETE FROM books 
+	WHERE id = $1
+	`
+	res, err := db.Exec(sqlStatement, idData)
+	count, err2 := res.RowsAffected()
+	if err != nil{
 		ctx.AbortWithStatusJSON(http.StatusNotFound,gin.H{
 			"error_message": fmt.Sprintf("Book with id %v not found", idData),
-			})
-		return
-	}
-
-
-
-	if state {
-		copy(bookDatas[indexBook:], bookDatas[indexBook+1:])
-		bookDatas[len(bookDatas)-1] = Book{}
-		bookDatas = bookDatas[:len(bookDatas)-1]
-
+		})
+	} else if (count == 0) {
+		ctx.AbortWithStatusJSON(http.StatusNotFound,gin.H{
+			"error_message": fmt.Sprintf("Book with id %v not found", idData),
+		})
+	} else if err2 != nil{
+		panic(err)
+	} else {
 		show := []byte(`"Deleted"`)
 		ctx.Data(http.StatusOK,"application/json", show)
 	}
@@ -164,5 +146,23 @@ func DeleteBook(ctx *gin.Context){
 	}
 
 	func GetAllBook(ctx *gin.Context){
+		var bookDatas = []Book{}
+		sqlStatement := `SELECT * FROM books`
+		rows, err := db.Query(sqlStatement)
+		if err != nil {
+			panic(err)
+		}
+
+		for rows.Next(){
+			var book = Book{}
+			err = rows.Scan(&book.BookID,&book.Title,&book.Author,&book.Desc)
+			if err != nil{
+				panic(err)
+			}
+			bookDatas = append(bookDatas, book)
+		}
+
+
+
 		ctx.JSON(http.StatusOK,bookDatas)
 	}
